@@ -1,5 +1,6 @@
-const CACHE = 'scribe-shell-v2';
-const SHELL = ['/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'scribe-shell-v3';
+const BASE = new URL('./', self.location.href).pathname;
+const SHELL = [`${BASE}manifest.webmanifest`, `${BASE}icon.svg`];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

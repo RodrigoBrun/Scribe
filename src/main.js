@@ -349,7 +349,7 @@ function highlightSafe(text, query) {
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' });
     registration.update().catch(() => {});
   } catch {
     // La aplicación sigue funcionando aunque el navegador no permita PWA.
