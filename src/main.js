@@ -15,7 +15,7 @@ const els = {
   liveTranscript: $('#liveTranscript'), cancelButton: $('#cancelButton'),
   resultMeta: $('#resultMeta'), resultTranscript: $('#resultTranscript'), searchInput: $('#searchInput'), searchCount: $('#searchCount'),
   copyButton: $('#copyButton'), downloadButton: $('#downloadButton'), newFileButton: $('#newFileButton'),
-  settingsModal: $('#settingsModal'), settingsClose: $('#settingsClose'), modelSelect: $('#modelSelect'), backendSelect: $('#backendSelect'), clearCacheButton: $('#clearCacheButton'), storageText: $('#storageText'),
+  settingsModal: $('#settingsModal'), settingsClose: $('#settingsClose'), languageSelect: $('#languageSelect'), modelSelect: $('#modelSelect'), backendSelect: $('#backendSelect'), clearCacheButton: $('#clearCacheButton'), storageText: $('#storageText'),
   toast: $('#toast'),
 };
 
@@ -29,6 +29,7 @@ const state = {
   cancelled: false,
   text: '',
   segments: [],
+  language: localStorage.getItem('scribe.language') || 'spanish',
   model: localStorage.getItem('scribe.model') || 'onnx-community/whisper-tiny',
   backend: localStorage.getItem('scribe.backend') || 'auto',
 };
@@ -36,6 +37,7 @@ const LIVE_CHUNK_SECONDS = 4;
 const MIN_LIVE_CHUNK_SECONDS = .45;
 const RECORDING_TARGET_RATE = 16000;
 const RECOVERY_KEY = 'scribe.recovery.v1';
+els.languageSelect.value = state.language;
 els.modelSelect.value = state.model;
 els.backendSelect.value = state.backend;
 
@@ -78,6 +80,7 @@ function bindEvents() {
   }));
   els.settingsClose.addEventListener('click', closeSettings);
   els.settingsModal.addEventListener('click', (e) => { if (e.target === els.settingsModal) closeSettings(); });
+  els.languageSelect.addEventListener('change', () => { state.language = els.languageSelect.value; localStorage.setItem('scribe.language', state.language); });
   els.modelSelect.addEventListener('change', () => { state.model = els.modelSelect.value; localStorage.setItem('scribe.model', state.model); restartWorker(); });
   els.backendSelect.addEventListener('change', () => { state.backend = els.backendSelect.value; localStorage.setItem('scribe.backend', state.backend); restartWorker(); });
   els.clearCacheButton.addEventListener('click', clearAICache);
@@ -161,7 +164,7 @@ function transcribe(audio) {
     };
 
     worker.onerror = (event) => reject(event.error || new Error(event.message || 'Error en el worker'));
-    worker.postMessage({ type: 'transcribe', payload: { audio, model: state.model, backend: state.backend } }, [audio.buffer]);
+    worker.postMessage({ type: 'transcribe', payload: { audio, model: state.model, backend: state.backend, language: state.language } }, [audio.buffer]);
   });
 }
 
@@ -339,7 +342,7 @@ function transcribeRecordingChunk(session, audio, offsetSeconds, id) {
     worker.onerror = (event) => reject(event.error || new Error(event.message || 'Error en el worker'));
     worker.postMessage({
       type: 'transcribe-live',
-      payload: { audio, model: state.model, backend: state.backend, offsetSeconds, id },
+      payload: { audio, model: state.model, backend: state.backend, language: state.language, offsetSeconds, id },
     }, [audio.buffer]);
   });
 }

@@ -18,7 +18,7 @@ self.onmessage = async (event) => {
   if (type !== 'transcribe' && type !== 'transcribe-live') return;
 
   cancelled = false;
-  const { audio, model, backend } = payload;
+  const { audio, model, backend, language } = payload;
 
   try {
     const pipe = await getPipeline(model, backend);
@@ -33,6 +33,7 @@ self.onmessage = async (event) => {
       const result = await pipe(audio, {
         return_timestamps: true,
         task: 'transcribe',
+        language: language || 'spanish',
       });
 
       if (cancelled) return;
@@ -63,6 +64,7 @@ self.onmessage = async (event) => {
       const result = await pipe(chunk, {
         return_timestamps: true,
         task: 'transcribe',
+        language: language || 'spanish',
       });
 
       const text = (result?.text || '').trim();

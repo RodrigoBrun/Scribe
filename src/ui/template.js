@@ -126,6 +126,15 @@ export function renderApp(root) {
         <div class="modal-head"><h2 id="settingsTitle">Ajustes</h2><button id="settingsClose" class="modal-close" aria-label="Cerrar">×</button></div>
         <div class="settings-grid">
           <div class="setting">
+            <label for="languageSelect">Idioma del audio</label>
+            <select id="languageSelect">
+              <option value="spanish">Español</option>
+              <option value="english">Inglés</option>
+              <option value="portuguese">Portugués</option>
+            </select>
+            <p>Elegí el idioma que se escucha en la grabación o el archivo.</p>
+          </div>
+          <div class="setting">
             <label for="modelSelect">Calidad</label>
             <select id="modelSelect">
               <option value="onnx-community/whisper-tiny">Rápido · Whisper Tiny</option>
