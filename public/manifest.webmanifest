@@ -2,13 +2,14 @@
   "name": "Scribe",
   "short_name": "Scribe",
   "description": "Transcripción local de audio y video en el navegador.",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#eaf2ff",
   "theme_color": "#eaf2ff",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "./icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
