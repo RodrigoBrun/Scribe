@@ -9,6 +9,7 @@ const $ = (selector) => document.querySelector(selector);
 const els = {
   ready: $('#readyView'), processing: $('#processingView'), result: $('#resultView'),
   dropzone: $('#dropzone'), fileInput: $('#fileInput'), filePreview: $('#filePreview'), fileName: $('#fileName'), fileMeta: $('#fileMeta'),
+  recordButton: $('#recordButton'), recordingStopButton: $('#recordingStopButton'),
   processingTitle: $('#processingTitle'), statusBadge: $('#statusBadge'), progressLabel: $('#progressLabel'), progressPercent: $('#progressPercent'), progressFill: $('#progressFill'),
   liveTranscript: $('#liveTranscript'), cancelButton: $('#cancelButton'),
   resultMeta: $('#resultMeta'), resultTranscript: $('#resultTranscript'), searchInput: $('#searchInput'), searchCount: $('#searchCount'),
@@ -22,12 +23,16 @@ const state = {
   duration: null,
   startedAt: null,
   worker: null,
+  recording: null,
   cancelled: false,
   text: '',
   segments: [],
   model: localStorage.getItem('scribe.model') || 'onnx-community/whisper-tiny',
   backend: localStorage.getItem('scribe.backend') || 'auto',
 };
+const LIVE_CHUNK_SECONDS = 6;
+const MIN_LIVE_CHUNK_SECONDS = .45;
+const RECORDING_TARGET_RATE = 16000;
 els.modelSelect.value = state.model;
 els.backendSelect.value = state.backend;
 
@@ -39,6 +44,8 @@ function bindEvents() {
   els.dropzone.addEventListener('click', () => els.fileInput.click());
   els.dropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') els.fileInput.click(); });
   els.fileInput.addEventListener('change', () => els.fileInput.files?.[0] && startFile(els.fileInput.files[0]));
+  els.recordButton.addEventListener('click', startRecording);
+  els.recordingStopButton.addEventListener('click', stopRecording);
 
   ['dragenter', 'dragover'].forEach((name) => els.dropzone.addEventListener(name, (e) => {
     e.preventDefault(); els.dropzone.classList.add('is-dragging');
@@ -56,7 +63,10 @@ function bindEvents() {
 
   document.querySelectorAll('[data-nav="settings"]').forEach((button) => button.addEventListener('click', openSettings));
   document.querySelectorAll('[data-nav="info"]').forEach((button) => button.addEventListener('click', () => toast('Tu archivo se procesa en el navegador. Scribe no lo sube a un servidor.')));
-  document.querySelectorAll('[data-nav="home"]').forEach((button) => button.addEventListener('click', () => state.segments.length ? showView('result') : showView('ready')));
+  document.querySelectorAll('[data-nav="home"]').forEach((button) => button.addEventListener('click', () => {
+    if (state.recording) return toast('Detené la grabación para ver el resultado.');
+    showView(state.segments.length ? 'result' : 'ready');
+  }));
   els.settingsClose.addEventListener('click', closeSettings);
   els.settingsModal.addEventListener('click', (e) => { if (e.target === els.settingsModal) closeSettings(); });
   els.modelSelect.addEventListener('change', () => { state.model = els.modelSelect.value; localStorage.setItem('scribe.model', state.model); restartWorker(); });
@@ -142,6 +152,249 @@ function transcribe(audio) {
   });
 }
 
+async function startRecording() {
+  if (state.recording) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    toast('Este navegador no permite usar el micrófono desde Scribe.', 5200);
+    return;
+  }
+
+  els.recordButton.disabled = true;
+  resetTranscriptOnly();
+  state.cancelled = false;
+  state.startedAt = performance.now();
+  state.duration = 0;
+  state.file = { name: 'Grabación en vivo', size: 0, type: 'audio/wav' };
+
+  els.fileName.textContent = 'Grabación en vivo';
+  els.fileMeta.textContent = 'Micrófono · procesamiento local';
+  els.processingTitle.textContent = 'Activando micrófono';
+  els.processing.classList.add('is-recording');
+  els.recordingStopButton.hidden = false;
+  els.cancelButton.textContent = 'Detener grabación';
+  els.statusBadge.textContent = 'MICRÓFONO';
+  showView('processing');
+  setStage('model');
+  setProgress(.2, 'Permití el acceso al micrófono para comenzar.');
+  els.progressPercent.textContent = 'EN VIVO';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('AudioContext no está disponible');
+
+    const context = new AudioContextClass();
+    await context.resume();
+    const source = context.createMediaStreamSource(stream);
+    const silentGain = context.createGain();
+    silentGain.gain.value = 0;
+
+    const session = {
+      stream,
+      context,
+      source,
+      processor: null,
+      silentGain,
+      buffers: [],
+      availableSamples: 0,
+      totalInputSamples: 0,
+      transcriptionOffset: 0,
+      nextChunkId: 1,
+      pendingChunks: 0,
+      queue: Promise.resolve(),
+      engineReady: false,
+      stopping: false,
+      timer: null,
+    };
+    state.recording = session;
+    restartWorker();
+
+    const receiveSamples = (samples) => handleRecordingSamples(session, samples);
+    if (context.audioWorklet && window.AudioWorkletNode) {
+      await context.audioWorklet.addModule(new URL('./engine/recorder.worklet.js?no-inline', import.meta.url));
+      const processor = new AudioWorkletNode(context, 'scribe-recorder');
+      processor.port.onmessage = (event) => receiveSamples(event.data);
+      session.processor = processor;
+    } else {
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = (event) => receiveSamples(event.inputBuffer.getChannelData(0));
+      session.processor = processor;
+    }
+
+    source.connect(session.processor);
+    session.processor.connect(silentGain);
+    silentGain.connect(context.destination);
+
+    els.processingTitle.textContent = 'Grabando y transcribiendo';
+    setProgress(.2, 'Grabando · preparando el modelo local…');
+    els.progressPercent.textContent = 'EN VIVO';
+    session.timer = setInterval(() => updateRecordingStatus(session), 500);
+  } catch (error) {
+    const session = state.recording;
+    if (session) {
+      clearInterval(session.timer);
+      session.processor?.disconnect();
+      session.source?.disconnect();
+      session.silentGain?.disconnect();
+      session.stream?.getTracks().forEach((track) => track.stop());
+      await session.context?.close().catch(() => {});
+    }
+    state.recording = null;
+    endRecordingUi();
+    fail(error);
+  } finally {
+    if (!state.recording) els.recordButton.disabled = false;
+  }
+}
+
+function handleRecordingSamples(session, samples) {
+  if (session.stopping || state.recording !== session || !samples?.length) return;
+  const copy = new Float32Array(samples);
+  session.buffers.push(copy);
+  session.availableSamples += copy.length;
+  session.totalInputSamples += copy.length;
+  state.duration = session.totalInputSamples / session.context.sampleRate;
+
+  const chunkSize = Math.round(session.context.sampleRate * LIVE_CHUNK_SECONDS);
+  while (session.availableSamples >= chunkSize) {
+    queueRecordingChunk(session, takeRecordingSamples(session, chunkSize));
+  }
+}
+
+function takeRecordingSamples(session, count) {
+  const wanted = Math.min(count, session.availableSamples);
+  const output = new Float32Array(wanted);
+  let written = 0;
+
+  while (written < wanted && session.buffers.length) {
+    const current = session.buffers[0];
+    const take = Math.min(current.length, wanted - written);
+    output.set(current.subarray(0, take), written);
+    written += take;
+    if (take === current.length) session.buffers.shift();
+    else session.buffers[0] = current.subarray(take);
+  }
+
+  session.availableSamples -= wanted;
+  return output;
+}
+
+function queueRecordingChunk(session, inputSamples) {
+  const audio = resampleRecording(inputSamples, session.context.sampleRate, RECORDING_TARGET_RATE);
+  if (audio.length < RECORDING_TARGET_RATE * MIN_LIVE_CHUNK_SECONDS) return;
+
+  const offsetSeconds = session.transcriptionOffset;
+  session.transcriptionOffset += audio.length / RECORDING_TARGET_RATE;
+  const id = session.nextChunkId++;
+  session.pendingChunks++;
+  session.queue = session.queue
+    .then(() => transcribeRecordingChunk(session, audio, offsetSeconds, id))
+    .finally(() => { session.pendingChunks = Math.max(0, session.pendingChunks - 1); });
+  session.queue.catch(() => {
+    if (state.recording === session && !session.stopping) stopRecording();
+  });
+}
+
+function transcribeRecordingChunk(session, audio, offsetSeconds, id) {
+  return new Promise((resolve, reject) => {
+    const worker = state.worker;
+    worker.onmessage = (event) => {
+      const { type, payload } = event.data || {};
+      if (type === 'model-progress') {
+        setProgress(.2, 'Grabando · descargando el modelo local…');
+        els.progressPercent.textContent = 'EN VIVO';
+      }
+      if (type === 'backend') {
+        session.engineReady = true;
+        els.statusBadge.textContent = payload.backend === 'webgpu' ? 'WEBGPU · EN VIVO' : 'WASM · EN VIVO';
+      }
+      if (type === 'live-result' && payload.id === id) {
+        session.engineReady = true;
+        state.text = [state.text, payload.text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        state.segments.push(...(payload.segments || []));
+        appendLiveSegments(payload.segments || []);
+        resolve();
+      }
+      if (type === 'error') reject(new Error(payload.message || 'Error al transcribir la grabación'));
+    };
+    worker.onerror = (event) => reject(event.error || new Error(event.message || 'Error en el worker'));
+    worker.postMessage({
+      type: 'transcribe-live',
+      payload: { audio, model: state.model, backend: state.backend, offsetSeconds, id },
+    }, [audio.buffer]);
+  });
+}
+
+function updateRecordingStatus(session) {
+  if (state.recording !== session || session.stopping) return;
+  const elapsed = session.totalInputSamples / session.context.sampleRate;
+  const pending = session.pendingChunks > 1 ? ` · ${session.pendingChunks} bloques pendientes` : '';
+  const activity = session.engineReady ? 'transcribiendo en vivo' : 'preparando el modelo';
+  els.progressLabel.textContent = `Grabando ${formatTime(elapsed)} · ${activity}${pending}`;
+  els.progressPercent.textContent = 'EN VIVO';
+}
+
+async function stopRecording() {
+  const session = state.recording;
+  if (!session || session.stopping) return;
+  session.stopping = true;
+  clearInterval(session.timer);
+  els.processingTitle.textContent = 'Terminando la transcripción';
+  els.statusBadge.textContent = 'FINALIZANDO';
+  els.progressLabel.textContent = 'Procesando los últimos segundos…';
+  els.recordingStopButton.disabled = true;
+
+  session.processor?.disconnect();
+  session.source?.disconnect();
+  session.silentGain?.disconnect();
+  session.stream.getTracks().forEach((track) => track.stop());
+
+  if (session.availableSamples) {
+    queueRecordingChunk(session, takeRecordingSamples(session, session.availableSamples));
+  }
+
+  await session.context.close().catch(() => {});
+
+  try {
+    await session.queue;
+    if (state.recording !== session) return;
+    state.duration = session.totalInputSamples / session.context.sampleRate;
+    state.recording = null;
+    endRecordingUi();
+    finish();
+  } catch (error) {
+    if (state.recording === session) state.recording = null;
+    endRecordingUi();
+    fail(error);
+  }
+}
+
+function endRecordingUi() {
+  els.processing.classList.remove('is-recording');
+  els.recordingStopButton.hidden = true;
+  els.recordingStopButton.disabled = false;
+  els.cancelButton.textContent = 'Cancelar';
+  els.recordButton.disabled = false;
+}
+
+function resampleRecording(input, fromRate, toRate) {
+  if (fromRate === toRate) return new Float32Array(input);
+  const ratio = fromRate / toRate;
+  const output = new Float32Array(Math.max(1, Math.round(input.length / ratio)));
+
+  for (let i = 0; i < output.length; i++) {
+    const start = Math.floor(i * ratio);
+    const end = Math.min(input.length, Math.max(start + 1, Math.floor((i + 1) * ratio)));
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += input[j];
+    output[i] = sum / (end - start);
+  }
+  return output;
+}
+
 function finish() {
   setStage('done');
   const elapsed = (performance.now() - state.startedAt) / 1000;
@@ -161,6 +414,8 @@ function fail(error) {
 
 function humanizeError(error) {
   const message = String(error?.message || error || 'Error desconocido');
+  if (/NotAllowedError|permission|Permission denied|denied/i.test(message)) return 'Necesito permiso para usar el micrófono. Habilitalo en el navegador y volvé a intentar.';
+  if (/NotFoundError|Requested device not found|micrófono/i.test(message)) return 'No encontré un micrófono disponible en este dispositivo.';
   if (/memory|allocation|out of memory/i.test(message)) return 'El archivo agotó la memoria disponible. Probá con un archivo más pequeño.';
   if (/webgpu/i.test(message)) return 'WebGPU falló. En Ajustes elegí “Automática” o “Compatibilidad (WASM)”.';
   if (/ffmpeg|decode|codec|wav/i.test(message)) return 'No pudimos leer el audio de este archivo. Probá convertirlo a MP4, MP3 o WAV.';
@@ -168,6 +423,10 @@ function humanizeError(error) {
 }
 
 function cancelCurrent() {
+  if (state.recording) {
+    stopRecording();
+    return;
+  }
   state.cancelled = true;
   state.worker?.postMessage({ type: 'cancel' });
   restartWorker();
@@ -313,7 +572,11 @@ function cleanupPreview() {
   els.filePreview.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l5 3-5 3V9z" fill="currentColor"/></svg>';
 }
 
-function openSettings() { els.settingsModal.classList.add('is-open'); refreshStorageEstimate(); }
+function openSettings() {
+  if (state.recording) return toast('Detené la grabación antes de cambiar los ajustes.');
+  els.settingsModal.classList.add('is-open');
+  refreshStorageEstimate();
+}
 function closeSettings() { els.settingsModal.classList.remove('is-open'); }
 async function clearAICache() {
   try {

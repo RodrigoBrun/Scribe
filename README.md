@@ -5,6 +5,7 @@ Web app local-first para convertir **audio o video en texto directamente en el n
 ## Qué hace esta versión
 
 - Arrastrar/seleccionar audio o video.
+- Grabar desde el micrófono y mostrar la transcripción por bloques mientras la persona habla.
 - Decodificación nativa de audio cuando el navegador lo soporta.
 - Fallback a `ffmpeg.wasm` para video y codecs más difíciles.
 - Transcripción local con Whisper vía `@huggingface/transformers`.
@@ -69,6 +70,7 @@ src/
   styles.css                      Aurora Flow adaptada a Scribe
   ui/template.js                  estructura visual
   engine/audio.js                 audio nativo + ffmpeg.wasm
+  engine/recorder.worklet.js      captura liviana del micrófono fuera del hilo principal
   engine/transcriber.worker.js    Whisper fuera del hilo principal
 public/
   manifest.webmanifest

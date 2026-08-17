@@ -15,7 +15,7 @@ self.onmessage = async (event) => {
     cancelled = true;
     return;
   }
-  if (type !== 'transcribe') return;
+  if (type !== 'transcribe' && type !== 'transcribe-live') return;
 
   cancelled = false;
   const { audio, model, backend } = payload;
@@ -25,6 +25,26 @@ self.onmessage = async (event) => {
     if (cancelled) return;
 
     const sampleRate = 16000;
+
+    if (type === 'transcribe-live') {
+      const offsetSeconds = Number(payload.offsetSeconds) || 0;
+      const chunkEnd = offsetSeconds + (audio.length / sampleRate);
+
+      const result = await pipe(audio, {
+        return_timestamps: true,
+        task: 'transcribe',
+      });
+
+      if (cancelled) return;
+      const text = (result?.text || '').trim();
+      const segments = normalizeSegments(result?.chunks, text, offsetSeconds, chunkEnd);
+      self.postMessage({
+        type: 'live-result',
+        payload: { id: payload.id, text, segments, offsetSeconds, duration: audio.length / sampleRate },
+      });
+      return;
+    }
+
     const chunkSeconds = 28;
     const chunkSamples = chunkSeconds * sampleRate;
     const totalChunks = Math.max(1, Math.ceil(audio.length / chunkSamples));
