@@ -134,6 +134,12 @@ body::after {
 .hero h1 { margin: 0 auto 18px; max-width: 720px; font-size: clamp(44px, 6vw, 72px); line-height: .98; letter-spacing: -3px; font-weight: 650; color: #163068; }
 .hero h1 em { font-style: normal; color: var(--primary); }
 .hero-subtitle { max-width: 560px; margin: 0 auto 34px; color: var(--text-muted); font-size: 14px; line-height: 1.65; }
+.recovery-notice { width: min(620px, 100%); margin: -14px auto 20px; display: flex; align-items: center; gap: 18px; padding: 14px 16px 14px 18px; border: 1px solid rgba(231,121,121,.22); border-radius: 22px; color: #75485a; background: rgba(255,245,247,.58); text-align: left; }
+.recovery-notice[hidden] { display: none; }
+.recovery-notice div { display: grid; gap: 4px; }
+.recovery-notice strong { font-size: 11px; }
+.recovery-notice span { color: #846878; font-size: 10px; line-height: 1.45; }
+.recovery-notice button { margin-left: auto; min-height: 34px; padding: 0 13px; border-radius: 17px; color: #75485a; background: rgba(255,255,255,.62); cursor: pointer; font-size: 10px; font-weight: 700; }
 
 .dropzone { width: min(620px, 100%); min-height: 236px; margin: 0 auto; border: 1px solid rgba(255,255,255,.74); border-radius: 34px; background: rgba(248,251,255,.42); backdrop-filter: blur(24px); display: grid; place-items: center; padding: 28px; cursor: pointer; box-shadow: 0 28px 76px rgba(54,93,154,.12), inset 0 1px rgba(255,255,255,.8); transition: transform 260ms var(--ease), box-shadow 260ms var(--ease), background 260ms var(--ease); position: relative; overflow: hidden; }
 .dropzone::before { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(78,124,255,.14), transparent 65%); top: -80px; right: -50px; }
@@ -183,6 +189,9 @@ body::after {
 .recording-stop[hidden] { display: none; }
 .recording-stop:hover { transform: translateY(-1px); background: rgba(231,121,121,.17); }
 .recording-stop i { width: 9px; height: 9px; border-radius: 50%; background: #e35f72; box-shadow: 0 0 0 6px rgba(227,95,114,.10); animation: recording-pulse 1.6s ease-in-out infinite; }
+.retry-button { width: 100%; min-height: 42px; margin-top: 12px; border-radius: 21px; color: #31517f; background: rgba(255,255,255,.58); cursor: pointer; font-size: 11px; font-weight: 700; box-shadow: 0 10px 28px rgba(54,93,154,.09); }
+.retry-button[hidden] { display: none; }
+.retry-button:hover { background: rgba(255,255,255,.78); }
 .processing-view.is-recording .progress-fill { width: 100% !important; background: linear-gradient(90deg, rgba(78,124,255,.20), var(--primary), rgba(132,201,255,.35)); background-size: 220% 100%; animation: recording-flow 2s linear infinite; }
 .transcript-scroll { flex: 1; overflow: auto; padding: 18px 26px 28px; scroll-behavior: smooth; }
 .transcript-empty { min-height: 300px; display: grid; place-items: center; text-align: center; color: #8290a8; font-size: 12px; }
@@ -262,6 +271,8 @@ mark { background: rgba(138,183,255,.35); color: inherit; border-radius: 4px; pa
   .privacy-pill { padding-inline: 10px; font-size: 9px; }
   .ready-view { padding-top: 30px; }
   .hero h1 { font-size: 44px; letter-spacing: -2px; }
+  .recovery-notice { align-items: flex-start; flex-direction: column; text-align: center; }
+  .recovery-notice button { width: 100%; margin-left: 0; }
   .dropzone { min-height: 220px; border-radius: 28px; }
   .record-entry { flex-direction: column; gap: 8px; }
   .record-button { width: min(310px, 100%); justify-content: center; }

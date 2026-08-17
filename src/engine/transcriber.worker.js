@@ -45,7 +45,7 @@ self.onmessage = async (event) => {
       return;
     }
 
-    const chunkSeconds = 28;
+    const chunkSeconds = isMobileDevice ? 15 : 28;
     const chunkSamples = chunkSeconds * sampleRate;
     const totalChunks = Math.max(1, Math.ceil(audio.length / chunkSamples));
     const allSegments = [];
@@ -111,7 +111,7 @@ async function getPipeline(model, backend) {
 
   const load = async (device) => pipeline('automatic-speech-recognition', model, {
     ...(device ? { device } : {}),
-    dtype: 'q8',
+    dtype: isMobileDevice ? 'q4' : 'q8',
     progress_callback,
   });
 
