@@ -36,6 +36,10 @@ export function renderApp(root) {
             <div class="hero">
               <h1 id="heroTitle">Convertí tu audio<br><em>en texto.</em></h1>
               <p class="hero-subtitle">Cuando termines, copiá la transcripción y guardala en un lugar seguro para no perderla.</p>
+              <div id="recoveryNotice" class="recovery-notice" hidden>
+                <div><strong>El proceso anterior se interrumpió.</strong><span id="recoveryNoticeText">El navegador recargó la página antes de terminar.</span></div>
+                <button id="recoveryDismissButton" type="button">Entendido</button>
+              </div>
               <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Abrir archivo de audio o video">
                 <div>
                   <div class="dropzone-icon">${icon('upload')}</div>
@@ -75,6 +79,7 @@ export function renderApp(root) {
                   <div class="progress-copy"><span id="progressLabel">Leyendo archivo…</span><span id="progressPercent">0%</span></div>
                   <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
                   <button id="recordingStopButton" class="recording-stop" type="button" hidden><i></i> Detener grabación y ver texto</button>
+                  <button id="retryButton" class="retry-button" type="button" hidden>Volver e intentar de nuevo</button>
                 </header>
                 <div id="liveTranscript" class="transcript-scroll">
                   <div class="transcript-empty">La transcripción irá apareciendo acá.</div>

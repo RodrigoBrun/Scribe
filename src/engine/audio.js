@@ -26,24 +26,27 @@ export async function getMediaDuration(file) {
 export async function decodeFileTo16kMono(file, onProgress = () => {}) {
   onProgress({ stage: 'prepare', progress: 0.04, label: 'Leyendo archivo…' });
 
-  // Camino rápido: el navegador puede decodificar directamente muchos formatos de audio.
-  if (!file.type.startsWith('video/')) {
-    try {
-      const audio = await decodeNative(file);
-      onProgress({ stage: 'prepare', progress: 1, label: 'Audio preparado' });
-      return audio;
-    } catch (error) {
-      console.warn('[Scribe] Decodificación nativa falló; usando FFmpeg.', error);
-    }
+  // Camino rápido: muchos navegadores móviles pueden extraer directamente la
+  // pista de audio de MP4/MOV. Evitar FFmpeg reduce mucho el uso de memoria.
+  try {
+    const audio = await decodeNative(file);
+    onProgress({ stage: 'prepare', progress: 1, label: 'Audio preparado' });
+    return audio;
+  } catch (error) {
+    console.warn('[Scribe] Decodificación nativa falló; usando FFmpeg.', error);
   }
 
   // Fallback universal para contenedores de video y codecs no soportados por AudioContext.
-  const wavBytes = await extractWithFFmpeg(file, (ratio) => {
-    onProgress({ stage: 'prepare', progress: Math.max(.08, Math.min(.96, ratio)), label: 'Extrayendo pista de audio…' });
-  });
-  const audio = parsePCM16Wav(wavBytes);
-  onProgress({ stage: 'prepare', progress: 1, label: 'Audio preparado' });
-  return audio;
+  try {
+    const wavBytes = await extractWithFFmpeg(file, (ratio) => {
+      onProgress({ stage: 'prepare', progress: Math.max(.08, Math.min(.96, ratio)), label: 'Extrayendo pista de audio…' });
+    });
+    const audio = parsePCM16Wav(wavBytes);
+    onProgress({ stage: 'prepare', progress: 1, label: 'Audio preparado' });
+    return audio;
+  } finally {
+    releaseFFmpeg();
+  }
 }
 
 async function decodeNative(file) {
@@ -93,6 +96,12 @@ async function ensureFFmpeg() {
   });
   ffmpegLoaded = true;
   return ffmpeg;
+}
+
+function releaseFFmpeg() {
+  ffmpeg?.terminate();
+  ffmpeg = null;
+  ffmpegLoaded = false;
 }
 
 async function extractWithFFmpeg(file, onProgress) {

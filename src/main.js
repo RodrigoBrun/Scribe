@@ -10,6 +10,7 @@ const els = {
   ready: $('#readyView'), processing: $('#processingView'), result: $('#resultView'),
   dropzone: $('#dropzone'), fileInput: $('#fileInput'), filePreview: $('#filePreview'), fileName: $('#fileName'), fileMeta: $('#fileMeta'),
   recordButton: $('#recordButton'), recordingStopButton: $('#recordingStopButton'),
+  retryButton: $('#retryButton'), recoveryNotice: $('#recoveryNotice'), recoveryNoticeText: $('#recoveryNoticeText'), recoveryDismissButton: $('#recoveryDismissButton'),
   processingTitle: $('#processingTitle'), statusBadge: $('#statusBadge'), progressLabel: $('#progressLabel'), progressPercent: $('#progressPercent'), progressFill: $('#progressFill'),
   liveTranscript: $('#liveTranscript'), cancelButton: $('#cancelButton'),
   resultMeta: $('#resultMeta'), resultTranscript: $('#resultTranscript'), searchInput: $('#searchInput'), searchCount: $('#searchCount'),
@@ -24,19 +25,22 @@ const state = {
   startedAt: null,
   worker: null,
   recording: null,
+  sourceKind: null,
   cancelled: false,
   text: '',
   segments: [],
   model: localStorage.getItem('scribe.model') || 'onnx-community/whisper-tiny',
   backend: localStorage.getItem('scribe.backend') || 'auto',
 };
-const LIVE_CHUNK_SECONDS = 6;
+const LIVE_CHUNK_SECONDS = 4;
 const MIN_LIVE_CHUNK_SECONDS = .45;
 const RECORDING_TARGET_RATE = 16000;
+const RECOVERY_KEY = 'scribe.recovery.v1';
 els.modelSelect.value = state.model;
 els.backendSelect.value = state.backend;
 
 bindEvents();
+restoreRecoverySnapshot();
 refreshStorageEstimate();
 registerServiceWorker();
 
@@ -46,6 +50,11 @@ function bindEvents() {
   els.fileInput.addEventListener('change', () => els.fileInput.files?.[0] && startFile(els.fileInput.files[0]));
   els.recordButton.addEventListener('click', startRecording);
   els.recordingStopButton.addEventListener('click', stopRecording);
+  els.retryButton.addEventListener('click', resetApp);
+  els.recoveryDismissButton.addEventListener('click', () => {
+    clearRecoverySnapshot();
+    els.recoveryNotice.hidden = true;
+  });
 
   ['dragenter', 'dragover'].forEach((name) => els.dropzone.addEventListener(name, (e) => {
     e.preventDefault(); els.dropzone.classList.add('is-dragging');
@@ -78,9 +87,12 @@ async function startFile(file) {
   if (!isSupportedFile(file)) return toast('Elegí un archivo de audio o video.');
   resetTranscriptOnly();
   state.file = file;
+  state.sourceKind = 'file';
   state.cancelled = false;
   state.startedAt = performance.now();
+  beginRecoverySnapshot('file', file.name);
   state.duration = await getMediaDuration(file);
+  saveRecoverySnapshot('processing');
 
   els.fileName.textContent = file.name;
   els.fileMeta.textContent = `${formatBytes(file.size)}${state.duration ? ` · ${formatTime(state.duration)}` : ''}\n${friendlyType(file)}`;
@@ -131,6 +143,7 @@ function transcribe(audio) {
         state.text = [state.text, payload.text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
         state.segments.push(...payload.segments);
         appendLiveSegments(payload.segments);
+        saveRecoverySnapshot('processing');
         const fraction = payload.progress;
         setProgress(.38 + fraction * .60, state.duration ? `${formatTime(state.duration * fraction)} de ${formatTime(state.duration)} analizados` : `${Math.round(fraction * 100)}% del audio`);
       }
@@ -165,6 +178,8 @@ async function startRecording() {
   state.startedAt = performance.now();
   state.duration = 0;
   state.file = { name: 'Grabación en vivo', size: 0, type: 'audio/wav' };
+  state.sourceKind = 'recording';
+  beginRecoverySnapshot('recording', state.file.name);
 
   els.fileName.textContent = 'Grabación en vivo';
   els.fileMeta.textContent = 'Micrófono · procesamiento local';
@@ -316,6 +331,7 @@ function transcribeRecordingChunk(session, audio, offsetSeconds, id) {
         state.text = [state.text, payload.text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
         state.segments.push(...(payload.segments || []));
         appendLiveSegments(payload.segments || []);
+        saveRecoverySnapshot('processing');
         resolve();
       }
       if (type === 'error') reject(new Error(payload.message || 'Error al transcribir la grabación'));
@@ -397,10 +413,12 @@ function resampleRecording(input, fromRate, toRate) {
 
 function finish() {
   setStage('done');
+  els.retryButton.hidden = true;
   const elapsed = (performance.now() - state.startedAt) / 1000;
   els.resultMeta.textContent = `${state.file?.name || 'Archivo'} · ${formatTime(state.duration || 0)} · procesado en ${formatElapsed(elapsed)}`;
   els.searchInput.value = '';
   renderResults();
+  saveRecoverySnapshot('complete');
   setTimeout(() => showView('result'), 260);
 }
 
@@ -409,6 +427,8 @@ function fail(error) {
   els.processingTitle.textContent = 'No pudimos procesar este archivo';
   els.statusBadge.textContent = 'ERROR';
   setProgress(0, humanizeError(error));
+  els.retryButton.hidden = false;
+  saveRecoverySnapshot('error');
   toast(humanizeError(error), 5200);
 }
 
@@ -443,9 +463,12 @@ function resetApp() {
   state.cancelled = false;
   state.file = null;
   state.duration = null;
+  state.sourceKind = null;
+  clearRecoverySnapshot();
   resetTranscriptOnly();
   els.fileInput.value = '';
   cleanupPreview();
+  els.recoveryNotice.hidden = true;
   setProgress(0, 'Esperando archivo…');
   setStage('prepare', true);
   showView('ready');
@@ -454,10 +477,83 @@ function resetApp() {
 function resetTranscriptOnly() {
   state.text = '';
   state.segments = [];
+  els.retryButton.hidden = true;
   els.liveTranscript.innerHTML = '<div class="transcript-empty">La transcripción irá apareciendo acá.</div>';
   els.resultTranscript.innerHTML = '';
   els.searchCount.textContent = '';
   els.statusBadge.textContent = 'LOCAL';
+}
+
+function beginRecoverySnapshot(kind, fileName) {
+  state.sourceKind = kind;
+  els.recoveryNotice.hidden = true;
+  const snapshot = {
+    version: 1,
+    status: 'processing',
+    kind,
+    fileName,
+    duration: 0,
+    text: '',
+    segments: [],
+    savedAt: Date.now(),
+  };
+  try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(snapshot)); } catch {}
+}
+
+function saveRecoverySnapshot(status) {
+  if (!state.file) return;
+  const snapshot = {
+    version: 1,
+    status,
+    kind: state.sourceKind,
+    fileName: state.file.name || 'Transcripción',
+    duration: Number(state.duration) || 0,
+    text: state.text || '',
+    segments: state.segments || [],
+    savedAt: Date.now(),
+  };
+
+  try {
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify(snapshot));
+  } catch {
+    try {
+      localStorage.setItem(RECOVERY_KEY, JSON.stringify({ ...snapshot, segments: [] }));
+    } catch {}
+  }
+}
+
+function restoreRecoverySnapshot() {
+  let snapshot;
+  try { snapshot = JSON.parse(localStorage.getItem(RECOVERY_KEY) || 'null'); } catch { return; }
+  if (!snapshot || snapshot.version !== 1) return;
+  if (Date.now() - Number(snapshot.savedAt || 0) > 7 * 24 * 60 * 60 * 1000) {
+    clearRecoverySnapshot();
+    return;
+  }
+
+  const hasRecoveredText = Boolean(String(snapshot.text || '').trim()) || (Array.isArray(snapshot.segments) && snapshot.segments.length > 0);
+  if (snapshot.status === 'complete' || hasRecoveredText) {
+    state.file = { name: snapshot.fileName || 'Transcripción recuperada', size: 0, type: 'audio/wav' };
+    state.sourceKind = snapshot.kind || 'file';
+    state.duration = Number(snapshot.duration) || 0;
+    state.text = String(snapshot.text || '');
+    state.segments = Array.isArray(snapshot.segments) ? snapshot.segments : [];
+    els.resultMeta.textContent = `${state.file.name} · ${formatTime(state.duration)} · texto recuperado${snapshot.status === 'complete' ? '' : ' (puede estar incompleto)'}`;
+    els.searchInput.value = '';
+    renderResults();
+    showView('result');
+    setTimeout(() => toast(snapshot.status === 'complete' ? 'Recuperamos tu última transcripción.' : 'Recuperamos el texto disponible antes del reinicio.', 5200), 250);
+    return;
+  }
+
+  els.recoveryNoticeText.textContent = snapshot.status === 'error'
+    ? 'El proceso anterior terminó con un error. Ya podés elegir el archivo o grabar otra vez.'
+    : 'El celular recargó la página antes de generar texto. Elegí el archivo o grabá otra vez.';
+  els.recoveryNotice.hidden = false;
+}
+
+function clearRecoverySnapshot() {
+  try { localStorage.removeItem(RECOVERY_KEY); } catch {}
 }
 
 function showView(name) {
