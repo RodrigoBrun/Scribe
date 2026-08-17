@@ -87,7 +87,7 @@ async function startFile(file) {
 
     setStage('model');
     els.processingTitle.textContent = 'Preparando motor de voz';
-    setProgress(.20, 'Cargando modelo…');
+    setProgress(.20, 'Cargando el modelo local… No cierres esta pantalla.');
     await transcribe(audio);
   } catch (error) {
     console.error(error);
@@ -104,7 +104,7 @@ function transcribe(audio) {
       const { type, payload } = event.data || {};
       if (type === 'model-progress') {
         const p = Number(payload.progress);
-        if (Number.isFinite(p)) setProgress(.20 + p * .18, `Descargando/cargando modelo…`);
+        if (Number.isFinite(p)) setProgress(.20 + p * .18, 'Descargando el modelo local… No cierres esta pantalla.');
       }
       if (type === 'backend') {
         els.statusBadge.textContent = payload.backend === 'webgpu' ? 'WEBGPU · LOCAL' : 'WASM · LOCAL';
@@ -247,6 +247,13 @@ function renderResults() {
   const query = els.searchInput.value.trim();
   const q = normalize(query);
   els.resultTranscript.innerHTML = '';
+
+  if (!state.text.trim() && !state.segments.length) {
+    els.resultTranscript.innerHTML = '<div class="result-empty"><strong>No se detectó voz en el archivo.</strong><span>Probá con un audio más claro, con volumen suficiente y poca música de fondo.</span></div>';
+    els.searchCount.textContent = 'Sin voz detectada';
+    return;
+  }
+
   const fragment = document.createDocumentFragment();
   let matches = 0;
 

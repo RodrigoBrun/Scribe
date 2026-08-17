@@ -192,6 +192,9 @@ body::after {
 .searchbar input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; }
 .search-count { white-space: nowrap; color: #8190a9; font-size: 10px; }
 .result-transcript { flex: 1; overflow: auto; padding: 14px 24px 26px; }
+.result-empty { min-height: 260px; display: grid; place-content: center; gap: 8px; padding: 28px; text-align: center; color: var(--text-muted); }
+.result-empty strong { color: var(--text); font-size: 15px; }
+.result-empty span { max-width: 430px; font-size: 12px; line-height: 1.6; }
 .result-segment { border-radius: 16px; display: grid; grid-template-columns: 72px 1fr; gap: 12px; padding: 12px; transition: background 180ms var(--ease), transform 180ms var(--ease); }
 .result-segment:hover { background: rgba(255,255,255,.34); transform: translateX(2px); }
 .result-segment.is-match { background: rgba(78,124,255,.09); }
