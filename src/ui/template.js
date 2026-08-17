@@ -3,6 +3,7 @@ const icon = (name) => {
     logo: '<svg viewBox="0 0 32 32" fill="none"><path d="M4 17c3 0 3-7 6-7s3 13 6 13 3-18 6-18 3 22 6 22" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>',
     file: '<svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="1.8"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8"/><path d="M10 13h5M10 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     upload: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 16V5m0 0L8 9m4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15v4h14v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="3" width="8" height="12" rx="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     settings: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" stroke="currentColor" stroke-width="1.8"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.4 1a7 7 0 00-2-1.1L14.2 3h-4.4l-.3 2.8a7 7 0 00-2 1.1l-2.4-1-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.4-1a7 7 0 002 1.1l.3 2.8h4.4l.3-2.8a7 7 0 002-1.1l2.4 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     info: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6m0-10v.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
@@ -44,6 +45,10 @@ export function renderApp(root) {
                 </div>
               </div>
               <input id="fileInput" type="file" accept="audio/*,video/*,.m4a,.mkv" hidden />
+              <div class="record-entry">
+                <span>o</span>
+                <button id="recordButton" class="record-button" type="button">${icon('mic')}<span><strong>Grabar audio</strong><small>Transcripción en vivo desde tu micrófono</small></span></button>
+              </div>
             </div>
           </section>
 
@@ -69,6 +74,7 @@ export function renderApp(root) {
                   </div>
                   <div class="progress-copy"><span id="progressLabel">Leyendo archivo…</span><span id="progressPercent">0%</span></div>
                   <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+                  <button id="recordingStopButton" class="recording-stop" type="button" hidden><i></i> Detener grabación y ver texto</button>
                 </header>
                 <div id="liveTranscript" class="transcript-scroll">
                   <div class="transcript-empty">La transcripción irá apareciendo acá.</div>

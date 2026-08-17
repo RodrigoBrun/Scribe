@@ -143,6 +143,14 @@ body::after {
 .dropzone strong { display: block; font-size: 15px; margin-bottom: 7px; }
 .dropzone small { color: var(--text-muted); font-size: 11px; }
 .support-line { margin-top: 18px; color: #70809b; font-size: 10px; }
+.record-entry { margin-top: 18px; display: flex; align-items: center; justify-content: center; gap: 12px; color: #7b8ba7; font-size: 11px; }
+.record-button { min-height: 58px; display: inline-flex; align-items: center; gap: 12px; padding: 9px 18px 9px 12px; border: 1px solid rgba(255,255,255,.72); border-radius: 29px; color: #31517f; background: rgba(255,255,255,.48); box-shadow: 0 12px 34px rgba(54,93,154,.10); cursor: pointer; text-align: left; transition: transform 220ms var(--ease), background 220ms var(--ease), box-shadow 220ms var(--ease); }
+.record-button:hover { transform: translateY(-3px); background: rgba(255,255,255,.66); box-shadow: 0 18px 42px rgba(54,93,154,.15); }
+.record-button:disabled { opacity: .62; cursor: wait; transform: none; }
+.record-button > svg { width: 38px; height: 38px; padding: 9px; border-radius: 50%; color: white; background: linear-gradient(145deg, #527fff, #7aa7ff); box-shadow: 0 8px 20px rgba(78,124,255,.24); }
+.record-button span { display: grid; gap: 3px; }
+.record-button strong { font-size: 12px; }
+.record-button small { color: var(--text-muted); font-size: 9px; }
 
 .processing-view { flex-direction: column; padding-top: 32px; }
 .processing-grid { display: grid; grid-template-columns: minmax(250px, .75fr) minmax(0, 1.55fr); gap: 22px; min-height: 610px; }
@@ -171,6 +179,11 @@ body::after {
 .progress-copy { margin-top: 16px; display: flex; justify-content: space-between; gap: 16px; color: var(--text-muted); font-size: 10px; }
 .progress-track { height: 6px; border-radius: 999px; background: rgba(95,118,157,.10); overflow: hidden; margin-top: 9px; }
 .progress-fill { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary), #84c9ff); box-shadow: 0 0 18px var(--glow); transition: width 360ms var(--ease); }
+.recording-stop { width: 100%; min-height: 42px; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 21px; color: #883f55; background: rgba(231,121,121,.11); cursor: pointer; font-size: 11px; font-weight: 700; transition: transform 180ms var(--ease), background 180ms var(--ease); }
+.recording-stop[hidden] { display: none; }
+.recording-stop:hover { transform: translateY(-1px); background: rgba(231,121,121,.17); }
+.recording-stop i { width: 9px; height: 9px; border-radius: 50%; background: #e35f72; box-shadow: 0 0 0 6px rgba(227,95,114,.10); animation: recording-pulse 1.6s ease-in-out infinite; }
+.processing-view.is-recording .progress-fill { width: 100% !important; background: linear-gradient(90deg, rgba(78,124,255,.20), var(--primary), rgba(132,201,255,.35)); background-size: 220% 100%; animation: recording-flow 2s linear infinite; }
 .transcript-scroll { flex: 1; overflow: auto; padding: 18px 26px 28px; scroll-behavior: smooth; }
 .transcript-empty { min-height: 300px; display: grid; place-items: center; text-align: center; color: #8290a8; font-size: 12px; }
 .segment { display: grid; grid-template-columns: 70px 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.42); animation: fade-slide 320ms var(--ease) both; }
@@ -223,6 +236,8 @@ mark { background: rgba(138,183,255,.35); color: inherit; border-radius: 4px; pa
 @keyframes fade-slide { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes aurora-drift { from { transform: translate3d(-1.5%, -1%, 0); } to { transform: translate3d(1.5%, 1%, 0); } }
 @keyframes wave-drift { from { transform: rotate(-4deg) translateX(-1.2%); } to { transform: rotate(-3deg) translateX(1.2%); } }
+@keyframes recording-flow { from { background-position: 100% 0; } to { background-position: -120% 0; } }
+@keyframes recording-pulse { 0%, 100% { transform: scale(.82); opacity: .72; } 50% { transform: scale(1); opacity: 1; } }
 
 @media (max-width: 900px) {
   .app-frame { width: calc(100vw - 24px); margin: 12px auto; min-height: calc(100vh - 24px); }
@@ -248,6 +263,8 @@ mark { background: rgba(138,183,255,.35); color: inherit; border-radius: 4px; pa
   .ready-view { padding-top: 30px; }
   .hero h1 { font-size: 44px; letter-spacing: -2px; }
   .dropzone { min-height: 220px; border-radius: 28px; }
+  .record-entry { flex-direction: column; gap: 8px; }
+  .record-button { width: min(310px, 100%); justify-content: center; }
   .scribe-footer { min-height: 54px; padding-top: 8px; }
   .processing-view, .result-view { padding-top: 18px; }
   .processing-grid { min-height: calc(100vh - 190px); }
