@@ -1,0 +1,366 @@
+/* ATRY Agency — firma digital reutilizable
+   Identidad oficial: Eurostile, #00efff, #00a5e2, #4754e6, #bcdaed, #050505. */
+
+@font-face {
+  font-family: "ATRY Eurostile";
+  src: url("assets/eurostile-medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "ATRY Eurostile";
+  src: url("assets/eurostile-demi.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "ATRY Eurostile Extended";
+  src: url("assets/eurostile-extended.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.atry-signature {
+  --atry-cyan: #00efff;
+  --atry-blue: #00a5e2;
+  --atry-violet: #4754e6;
+  --atry-ice: #bcdaed;
+  --atry-ink: #050505;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 999px;
+  font-family: "ATRY Eurostile", Arial, Helvetica, sans-serif;
+}
+
+.atry-signature::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px 13px -5px;
+  border-radius: inherit;
+  background: linear-gradient(100deg, var(--atry-cyan), var(--atry-blue) 48%, var(--atry-violet));
+  opacity: .24;
+  filter: blur(14px);
+  transition: opacity 260ms ease, filter 260ms ease, transform 260ms ease;
+}
+
+.atry-signature__link {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 6px 12px 6px 7px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  color: #fff;
+  text-decoration: none;
+  background:
+    linear-gradient(112deg, #050505 0%, #0b1018 55%, #080b11 100%) padding-box,
+    linear-gradient(115deg, rgba(0,239,255,.72), rgba(0,165,226,.34) 42%, rgba(71,84,230,.74)) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 -1px 0 rgba(0,0,0,.48),
+    0 8px 24px rgba(5,7,10,.22);
+  transform: translateY(0);
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms ease;
+}
+
+.atry-signature__link::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 30%, rgba(0,239,255,.10), transparent 34%),
+    radial-gradient(circle at 86% 75%, rgba(71,84,230,.16), transparent 38%);
+}
+
+.atry-signature__link::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  top: -45%;
+  bottom: -45%;
+  left: -54%;
+  width: 44%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0,0,0) skewX(-13deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0,239,255,.10) 12%,
+    rgba(115,255,230,.50) 28%,
+    rgba(255,112,238,.42) 44%,
+    rgba(255,255,255,.82) 55%,
+    rgba(98,150,255,.50) 68%,
+    rgba(146,255,176,.30) 82%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.atry-signature__foil {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(108deg, transparent 2%, rgba(0,239,255,.34) 17%, rgba(255,116,229,.30) 31%, rgba(137,255,190,.27) 45%, rgba(106,150,255,.34) 59%, transparent 76%),
+    linear-gradient(112deg, #68727c 0%, #eef3f6 14%, #9da8b1 27%, #ffffff 42%, #8b969f 57%, #edf2f5 72%, #727c86 86%, #f8fbfd 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -1px 0 rgba(56,66,76,.50),
+    inset 0 0 18px rgba(255,255,255,.20);
+  will-change: opacity;
+  backface-visibility: hidden;
+  contain: paint;
+}
+
+.atry-signature__logo {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(188,218,237,.18);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,.11), rgba(0,165,226,.05));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 0 15px rgba(0,165,226,.08);
+}
+
+.atry-signature__logo::before {
+  content: "";
+  width: 27px;
+  height: 27px;
+  display: block;
+  background: url("assets/atry-mark.png") center / contain no-repeat;
+}
+
+.atry-signature__copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.atry-signature__prefix {
+  color: rgba(188,218,237,.82);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .015em;
+}
+
+.atry-signature__brand {
+  color: #fff;
+  font-family: "ATRY Eurostile Extended", "ATRY Eurostile", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: .035em;
+}
+
+.atry-signature__arrow {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--atry-cyan);
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1), color 240ms ease;
+}
+
+.atry-signature__arrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atry-signature--revealed .atry-signature__link::after {
+  animation: atry-signature-hologram 2s cubic-bezier(.22,.68,.24,1) 120ms 1 both;
+}
+
+.atry-signature--revealed .atry-signature__foil {
+  animation: atry-signature-foil 2s cubic-bezier(.22,.68,.24,1) 120ms 1 both;
+}
+
+.atry-signature--revealed .atry-signature__prefix {
+  animation: atry-signature-foil-prefix 2s ease-in-out 120ms 1 both;
+}
+
+.atry-signature--revealed .atry-signature__brand {
+  animation: atry-signature-foil-brand 2s ease-in-out 120ms 1 both;
+}
+
+.atry-signature--revealed .atry-signature__arrow {
+  animation: atry-signature-foil-arrow 2s ease-in-out 120ms 1 both;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atry-signature:hover::before {
+    opacity: .42;
+    filter: blur(17px);
+    transform: scale(1.03);
+  }
+
+  .atry-signature__link:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.13),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 12px 32px rgba(5,7,10,.26),
+      0 0 22px rgba(0,165,226,.13);
+  }
+
+  .atry-signature__link:hover::after {
+    animation: atry-signature-hover-shine 1.15s cubic-bezier(.22,.68,.24,1) 1 both;
+  }
+
+  .atry-signature__link:hover .atry-signature__foil {
+    animation: atry-signature-foil-hover 1.15s cubic-bezier(.22,.68,.24,1) 1 both;
+  }
+
+  .atry-signature__link:hover .atry-signature__prefix {
+    animation: atry-signature-foil-prefix-hover 1.15s ease-in-out 1 both;
+  }
+
+  .atry-signature__link:hover .atry-signature__brand {
+    animation: atry-signature-foil-brand-hover 1.15s ease-in-out 1 both;
+  }
+
+  .atry-signature__link:hover .atry-signature__arrow {
+    animation: atry-signature-foil-arrow-hover 1.15s ease-in-out 1 both;
+  }
+
+  .atry-signature__link:hover .atry-signature__arrow {
+    color: #fff;
+    transform: translate(1px,-1px);
+  }
+}
+
+.atry-signature__link:focus-visible {
+  outline: 3px solid rgba(0,239,255,.40);
+  outline-offset: 4px;
+}
+
+@keyframes atry-signature-hologram {
+  0% { opacity: 0; transform: translate3d(0,0,0) skewX(-13deg); }
+  10% { opacity: .90; }
+  86% { opacity: .78; }
+  100% { opacity: 0; transform: translate3d(390%,0,0) skewX(-13deg); }
+}
+
+@keyframes atry-signature-foil {
+  0% { opacity: 0; }
+  16% { opacity: .94; }
+  50% { opacity: .98; }
+  84% { opacity: .92; }
+  100% { opacity: 0; }
+}
+
+@keyframes atry-signature-foil-hover {
+  0% { opacity: 0; }
+  16% { opacity: .94; }
+  50% { opacity: .98; }
+  84% { opacity: .92; }
+  100% { opacity: 0; }
+}
+
+@keyframes atry-signature-foil-prefix {
+  0%, 12%, 92%, 100% { color: rgba(188,218,237,.82); }
+  28%, 78% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-foil-brand {
+  0%, 12%, 92%, 100% { color: #fff; }
+  28%, 78% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-foil-arrow {
+  0%, 12%, 92%, 100% { color: var(--atry-cyan); }
+  28%, 78% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-foil-prefix-hover {
+  0%, 10%, 90%, 100% { color: rgba(188,218,237,.82); }
+  30%, 76% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-foil-brand-hover {
+  0%, 10%, 90%, 100% { color: #fff; }
+  30%, 76% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-foil-arrow-hover {
+  0%, 10%, 90%, 100% { color: var(--atry-cyan); }
+  30%, 76% { color: rgba(5,5,5,.86); }
+}
+
+@keyframes atry-signature-hover-shine {
+  0% { opacity: 0; transform: translate3d(0,0,0) skewX(-13deg); }
+  18% { opacity: .45; }
+  100% { opacity: 0; transform: translate3d(390%,0,0) skewX(-13deg); }
+}
+
+@media (max-width: 520px) {
+  .atry-signature__link {
+    min-height: 43px;
+    gap: 8px;
+    padding: 5px 10px 5px 6px;
+  }
+
+  .atry-signature__logo {
+    width: 31px;
+    height: 31px;
+  }
+
+  .atry-signature__logo::before {
+    width: 24px;
+    height: 24px;
+  }
+
+  .atry-signature__prefix { font-size: 9px; }
+  .atry-signature__brand { font-size: 10px; }
+  .atry-signature__arrow { width: 14px; height: 14px; }
+  .atry-signature::before { opacity: .18; filter: blur(11px); }
+}
+
+@media (max-width: 370px) {
+  .atry-signature__copy { display: grid; gap: 1px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atry-signature *,
+  .atry-signature *::before,
+  .atry-signature *::after {
+    animation: none !important;
+    transition-duration: .001ms !important;
+  }
+
+  .atry-signature__link:hover { transform: none; }
+  .atry-signature__foil { display: none; }
+  .atry-signature__link::after { display: none; }
+}
