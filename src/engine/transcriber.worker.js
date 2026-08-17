@@ -4,6 +4,11 @@ let transcriber = null;
 let loadedConfigKey = '';
 let cancelled = false;
 
+const isMobileDevice = Boolean(
+  navigator.userAgentData?.mobile
+  || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''),
+);
+
 self.onmessage = async (event) => {
   const { type, payload } = event.data || {};
   if (type === 'cancel') {
@@ -95,7 +100,9 @@ async function getPipeline(model, backend) {
   } else if (requestedBackend === 'wasm') {
     transcriber = await load();
   } else {
-    if ('gpu' in navigator) {
+    // En móviles priorizamos estabilidad: WebGPU todavía puede anunciarse como
+    // disponible y fallar o quedar bloqueado durante la carga del modelo.
+    if (!isMobileDevice && 'gpu' in navigator) {
       try {
         transcriber = await load('webgpu');
         self.postMessage({ type: 'backend', payload: { backend: 'webgpu' } });
