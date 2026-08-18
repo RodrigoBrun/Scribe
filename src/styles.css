@@ -185,6 +185,7 @@ body::after {
 .progress-copy { margin-top: 16px; display: flex; justify-content: space-between; gap: 16px; color: var(--text-muted); font-size: 10px; }
 .progress-track { height: 6px; border-radius: 999px; background: rgba(95,118,157,.10); overflow: hidden; margin-top: 9px; }
 .progress-fill { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary), #84c9ff); box-shadow: 0 0 18px var(--glow); transition: width 360ms var(--ease); }
+.progress-fill.is-indeterminate { min-width: 24%; background: linear-gradient(90deg, rgba(78,124,255,.34), var(--primary), #b5ddff, var(--primary)); background-size: 220% 100%; animation: model-loading-flow 1.8s linear infinite; }
 .recording-stop { width: 100%; min-height: 42px; margin-top: 16px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 21px; color: #883f55; background: rgba(231,121,121,.11); cursor: pointer; font-size: 11px; font-weight: 700; transition: transform 180ms var(--ease), background 180ms var(--ease); }
 .recording-stop[hidden] { display: none; }
 .recording-stop:hover { transform: translateY(-1px); background: rgba(231,121,121,.17); }
@@ -246,6 +247,7 @@ mark { background: rgba(138,183,255,.35); color: inherit; border-radius: 4px; pa
 @keyframes aurora-drift { from { transform: translate3d(-1.5%, -1%, 0); } to { transform: translate3d(1.5%, 1%, 0); } }
 @keyframes wave-drift { from { transform: rotate(-4deg) translateX(-1.2%); } to { transform: rotate(-3deg) translateX(1.2%); } }
 @keyframes recording-flow { from { background-position: 100% 0; } to { background-position: -120% 0; } }
+@keyframes model-loading-flow { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @keyframes recording-pulse { 0%, 100% { transform: scale(.82); opacity: .72; } 50% { transform: scale(1); opacity: 1; } }
 
 @media (max-width: 900px) {
