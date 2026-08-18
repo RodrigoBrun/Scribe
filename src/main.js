@@ -27,6 +27,9 @@ const state = {
   recording: null,
   sourceKind: null,
   cancelled: false,
+  operationStage: null,
+  progress: 0,
+  diagnostics: null,
   text: '',
   segments: [],
   language: localStorage.getItem('scribe.language') || 'spanish',
@@ -93,6 +96,7 @@ async function startFile(file) {
   state.sourceKind = 'file';
   state.cancelled = false;
   state.startedAt = performance.now();
+  state.operationStage = 'metadata';
   beginRecoverySnapshot('file', file.name);
   state.duration = await getMediaDuration(file);
   saveRecoverySnapshot('processing');
@@ -102,7 +106,9 @@ async function startFile(file) {
   setupPreview(file);
   showView('processing');
   setStage('prepare');
-  setProgress(.02, 'Preparando archivo…');
+  setProgress(.02, 'Preparando archivo…', { reset: true });
+  state.operationStage = 'decode';
+  saveRecoverySnapshot('processing');
 
   try {
     const audio = await decodeFileTo16kMono(file, ({ progress, label }) => {
@@ -111,8 +117,10 @@ async function startFile(file) {
     if (state.cancelled) return;
 
     setStage('model');
+    state.operationStage = 'model';
+    saveRecoverySnapshot('processing');
     els.processingTitle.textContent = 'Preparando motor de voz';
-    setProgress(.20, 'Cargando el modelo local… No cierres esta pantalla.');
+    setProgress(.24, 'Descargando y preparando el motor local…', { indeterminate: true });
     await transcribe(audio);
   } catch (error) {
     console.error(error);
@@ -122,19 +130,22 @@ async function startFile(file) {
 
 function transcribe(audio) {
   return new Promise((resolve, reject) => {
-    restartWorker();
-    const worker = state.worker;
+    const worker = ensureWorker();
 
     worker.onmessage = (event) => {
       const { type, payload } = event.data || {};
       if (type === 'model-progress') {
-        const p = Number(payload.progress);
-        if (Number.isFinite(p)) setProgress(.20 + p * .18, 'Descargando el modelo local… No cierres esta pantalla.');
+        setProgress(.24, 'Descargando y preparando el motor local…', { indeterminate: true });
+      }
+      if (type === 'diagnostic') {
+        state.diagnostics = payload;
+        saveRecoverySnapshot('processing');
       }
       if (type === 'backend') {
         els.statusBadge.textContent = payload.backend === 'webgpu' ? 'WEBGPU · LOCAL' : 'WASM · LOCAL';
       }
       if (type === 'chunk-start') {
+        state.operationStage = 'transcribe';
         setStage('transcribe');
         els.processingTitle.textContent = 'Transcribiendo';
         const fraction = payload.index / payload.total;
@@ -182,6 +193,7 @@ async function startRecording() {
   state.duration = 0;
   state.file = { name: 'Grabación en vivo', size: 0, type: 'audio/wav' };
   state.sourceKind = 'recording';
+  state.operationStage = 'permission';
   beginRecoverySnapshot('recording', state.file.name);
 
   els.fileName.textContent = 'Grabación en vivo';
@@ -228,7 +240,9 @@ async function startRecording() {
       timer: null,
     };
     state.recording = session;
-    restartWorker();
+    ensureWorker();
+    state.operationStage = 'model';
+    saveRecoverySnapshot('processing');
 
     const receiveSamples = (samples) => handleRecordingSamples(session, samples);
     if (context.audioWorklet && window.AudioWorkletNode) {
@@ -325,12 +339,17 @@ function transcribeRecordingChunk(session, audio, offsetSeconds, id) {
         setProgress(.2, 'Grabando · descargando el modelo local…');
         els.progressPercent.textContent = 'EN VIVO';
       }
+      if (type === 'diagnostic') {
+        state.diagnostics = payload;
+        saveRecoverySnapshot('processing');
+      }
       if (type === 'backend') {
         session.engineReady = true;
         els.statusBadge.textContent = payload.backend === 'webgpu' ? 'WEBGPU · EN VIVO' : 'WASM · EN VIVO';
       }
       if (type === 'live-result' && payload.id === id) {
         session.engineReady = true;
+        state.operationStage = 'transcribe';
         state.text = [state.text, payload.text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
         state.segments.push(...(payload.segments || []));
         appendLiveSegments(payload.segments || []);
@@ -429,7 +448,7 @@ function fail(error) {
   console.error('[Scribe]', error);
   els.processingTitle.textContent = 'No pudimos procesar este archivo';
   els.statusBadge.textContent = 'ERROR';
-  setProgress(0, humanizeError(error));
+  setProgress(0, humanizeError(error), { reset: true });
   els.retryButton.hidden = false;
   saveRecoverySnapshot('error');
   toast(humanizeError(error), 5200);
@@ -462,17 +481,23 @@ function restartWorker() {
   state.worker = new Worker(new URL('./engine/transcriber.worker.js', import.meta.url), { type: 'module' });
 }
 
+function ensureWorker() {
+  if (!state.worker) restartWorker();
+  return state.worker;
+}
+
 function resetApp() {
   state.cancelled = false;
   state.file = null;
   state.duration = null;
   state.sourceKind = null;
+  state.operationStage = null;
   clearRecoverySnapshot();
   resetTranscriptOnly();
   els.fileInput.value = '';
   cleanupPreview();
   els.recoveryNotice.hidden = true;
-  setProgress(0, 'Esperando archivo…');
+  setProgress(0, 'Esperando archivo…', { reset: true });
   setStage('prepare', true);
   showView('ready');
 }
@@ -480,6 +505,8 @@ function resetApp() {
 function resetTranscriptOnly() {
   state.text = '';
   state.segments = [];
+  state.progress = 0;
+  els.progressFill.classList.remove('is-indeterminate');
   els.retryButton.hidden = true;
   els.liveTranscript.innerHTML = '<div class="transcript-empty">La transcripción irá apareciendo acá.</div>';
   els.resultTranscript.innerHTML = '';
@@ -499,6 +526,8 @@ function beginRecoverySnapshot(kind, fileName) {
     text: '',
     segments: [],
     savedAt: Date.now(),
+    stage: state.operationStage,
+    diagnostics: state.diagnostics,
   };
   try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(snapshot)); } catch {}
 }
@@ -514,6 +543,8 @@ function saveRecoverySnapshot(status) {
     text: state.text || '',
     segments: state.segments || [],
     savedAt: Date.now(),
+    stage: state.operationStage,
+    diagnostics: state.diagnostics,
   };
 
   try {
@@ -549,9 +580,16 @@ function restoreRecoverySnapshot() {
     return;
   }
 
+  const interruptedAt = snapshot.stage === 'model'
+    ? 'El navegador cerró el motor local mientras cargaba el modelo de voz.'
+    : snapshot.stage === 'decode'
+      ? 'El navegador cerró el proceso mientras preparaba el audio del archivo.'
+      : snapshot.stage === 'transcribe'
+        ? 'El navegador cerró el proceso durante la transcripción.'
+        : 'El celular recargó la página antes de generar texto.';
   els.recoveryNoticeText.textContent = snapshot.status === 'error'
     ? 'El proceso anterior terminó con un error. Ya podés elegir el archivo o grabar otra vez.'
-    : 'El celular recargó la página antes de generar texto. Elegí el archivo o grabá otra vez.';
+    : `${interruptedAt} Activamos el modo de memoria reducida para el próximo intento.`;
   els.recoveryNotice.hidden = false;
 }
 
@@ -566,10 +604,14 @@ function showView(name) {
   document.querySelectorAll('[data-nav]').forEach((button) => button.classList.toggle('is-active', button.dataset.nav === 'home'));
 }
 
-function setProgress(value, label) {
-  const p = Math.max(0, Math.min(1, value || 0));
+function setProgress(value, label, { reset = false, indeterminate = false } = {}) {
+  if (reset) state.progress = 0;
+  const requested = Math.max(0, Math.min(1, value || 0));
+  const p = Math.max(state.progress, requested);
+  state.progress = p;
+  els.progressFill.classList.toggle('is-indeterminate', indeterminate);
   els.progressFill.style.width = `${Math.round(p * 100)}%`;
-  els.progressPercent.textContent = `${Math.round(p * 100)}%`;
+  els.progressPercent.textContent = indeterminate ? '…' : `${Math.round(p * 100)}%`;
   els.progressLabel.textContent = label;
 }
 

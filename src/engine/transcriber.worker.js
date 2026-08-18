@@ -1,13 +1,26 @@
-import { pipeline } from '@huggingface/transformers';
+import { env, pipeline } from '@huggingface/transformers';
 
 let transcriber = null;
 let loadedConfigKey = '';
 let cancelled = false;
 
+const isIPadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
 const isMobileDevice = Boolean(
   navigator.userAgentData?.mobile
-  || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''),
+  || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')
+  || isIPadDesktopMode,
 );
+const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+  || isIPadDesktopMode;
+
+// Los modelos grandes se duplican temporalmente al guardarse en Cache Storage.
+// En móviles ese pico puede hacer que el navegador mate toda la pestaña. Una
+// sola sesión conserva el modelo en este worker, así que priorizamos memoria.
+if (isMobileDevice) {
+  env.useBrowserCache = false;
+  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.proxy = false;
+}
 
 self.onmessage = async (event) => {
   const { type, payload } = event.data || {};
@@ -31,7 +44,7 @@ self.onmessage = async (event) => {
       const chunkEnd = offsetSeconds + (audio.length / sampleRate);
 
       const result = await pipe(audio, {
-        return_timestamps: true,
+        return_timestamps: !isMobileDevice,
         task: 'transcribe',
         language: language || 'spanish',
       });
@@ -46,7 +59,7 @@ self.onmessage = async (event) => {
       return;
     }
 
-    const chunkSeconds = isMobileDevice ? 15 : 28;
+    const chunkSeconds = isMobileDevice ? 10 : 28;
     const chunkSamples = chunkSeconds * sampleRate;
     const totalChunks = Math.max(1, Math.ceil(audio.length / chunkSamples));
     const allSegments = [];
@@ -62,7 +75,7 @@ self.onmessage = async (event) => {
       self.postMessage({ type: 'chunk-start', payload: { index: i, total: totalChunks, offsetSeconds } });
 
       const result = await pipe(chunk, {
-        return_timestamps: true,
+        return_timestamps: !isMobileDevice,
         task: 'transcribe',
         language: language || 'spanish',
       });
@@ -107,17 +120,38 @@ async function getPipeline(model, backend) {
         status: progress?.status || 'loading',
         file: progress?.file || '',
         progress: Number.isFinite(value) ? value / 100 : null,
+        loaded: Number(progress?.loaded) || 0,
+        total: Number(progress?.total) || 0,
       },
     });
   };
 
+  self.postMessage({
+    type: 'diagnostic',
+    payload: {
+      mobile: isMobileDevice,
+      ios: isIOSDevice,
+      cache: env.useBrowserCache,
+      threads: env.backends.onnx.wasm.numThreads,
+      crossOriginIsolated: Boolean(self.crossOriginIsolated),
+    },
+  });
+
   const load = async (device) => pipeline('automatic-speech-recognition', model, {
     ...(device ? { device } : {}),
     dtype: isMobileDevice ? 'q4' : 'q8',
+    ...(isMobileDevice && !device ? {
+      session_options: {
+        enableCpuMemArena: false,
+        enableMemPattern: false,
+        executionMode: 'sequential',
+        graphOptimizationLevel: 'basic',
+      },
+    } : {}),
     progress_callback,
   });
 
-  if (requestedBackend === 'webgpu') {
+  if (requestedBackend === 'webgpu' && !isIOSDevice) {
     transcriber = await load('webgpu');
   } else if (requestedBackend === 'wasm') {
     transcriber = await load();
